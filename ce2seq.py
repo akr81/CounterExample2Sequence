@@ -203,7 +203,7 @@ scale 2.0
         counter_example = COUNTEREXAMPLE
     else:
         with open(sys.argv[1], "r") as f:
-            counter_example = f.readlines()
+            counter_example = f.read()
 
     plantuml_code += convert_to_plantuml_code(counter_example)
     plantuml_code += "@enduml\n"
