@@ -7,7 +7,7 @@ SPINの実行結果(反例)をシーケンス図に変換します。
 コマンドラインから、SPINの実行結果ファイルを引数として実行します。
 
 ```shell
-python counterexample2seq.py FILE
+python ce2seq.py FILE
 ```
 
 成功すると、`sequence_diagram.png`が作成されます。  
