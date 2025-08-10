@@ -80,14 +80,19 @@ def convert_to_dataframe(counter_example: str) -> pd.DataFrame:
     """
     data = []
     variables = {}
+    loop = False
     for line in counter_example.splitlines():
         line = line.strip()
+
+        # ループの開始を検出
+        if "<<<<<START OF CYCLE>>>>>" in line:
+            loop = True
+
         m = re.match(pattern, line, re.VERBOSE)
         if m:
             step_num, process_name, file_line, action = m.groups()
 
             # actionが値を更新する場合、変数名と値を抽出
-            # 例: "DB_state = ready" -> "DB_state", "ready"
             if "=" in action and "==" not in action:
                 variable, value = action.split("=", 1)
                 variable = variable.strip()
@@ -96,13 +101,14 @@ def convert_to_dataframe(counter_example: str) -> pd.DataFrame:
                 # 変数の更新がない場合はスキップ
                 continue
 
-            # 変数の値を保持する辞書と照合して、値があれば取り出し
+            # 変数を更新する値自体が変数の場合、辞書と照合して、値があれば取り出し
             value = variables.get(f"{value}", value)
             variables.update({f"{variable}": value})
 
             data.append(
                 {
                     "step": int(step_num),
+                    "loop": loop,
                     "process": process_name,
                     "action": action,
                     "file_line": file_line,
