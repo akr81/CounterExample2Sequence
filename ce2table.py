@@ -1,8 +1,6 @@
 # %%
 # SPINの反例から変数の変化をテーブルに変換するスクリプト
-import zlib
 import re
-import requests
 import sys
 import pandas as pd
 
@@ -69,6 +67,98 @@ pattern = r"""
 
 
 # %%
+import ast, keyword
+
+
+class StringifyUnknownNames(ast.NodeTransformer):
+    def __init__(self, allowed_names):
+        self.allowed_names = set(allowed_names) | {"True", "False", "None"}
+
+    def visit_Name(self, node: ast.Name):
+        # 右辺などの読み取り専用（Load）の名前だけを対象にする
+        if isinstance(node.ctx, ast.Load):
+            name = node.id
+            if name not in self.allowed_names and not keyword.iskeyword(name):
+                return ast.Constant(value=name)  # 未知の名前 → "name"
+        return node
+
+
+# 最低限の安全チェック（許可するノードだけ通す）
+_ALLOWED_NODES = {
+    ast.Module,
+    ast.Assign,
+    ast.AnnAssign,
+    ast.AugAssign,
+    ast.Expr,
+    ast.Name,
+    ast.Constant,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.BoolOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.And,
+    ast.Or,
+    ast.Not,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.In,
+    ast.NotIn,
+    ast.Is,
+    ast.IsNot,
+    ast.Load,
+    ast.Store,
+    ast.Tuple,
+    ast.List,
+    ast.Dict,
+    ast.Set,
+    ast.Subscript,
+    ast.Slice,
+    ast.Index,
+    ast.Attribute,
+}
+
+
+def _assert_safe(tree: ast.AST):
+    for node in ast.walk(tree):
+        if type(node) not in _ALLOWED_NODES:
+            raise ValueError(f"Disallowed syntax: {type(node).__name__}")
+
+
+def smart_exec(assign_src: str, env: dict):
+    """
+    代入文を受け取り、環境にない単語を自動で文字列化してから exec する。
+    例: smart_exec('sw = off', env) → env['sw'] == 'off'
+    """
+    # パース（代入文を想定）
+    tree = ast.parse(assign_src, mode="exec")
+
+    # 安全チェック
+    _assert_safe(tree)
+
+    # 未知Nameを"文字列"に変換
+    transformer = StringifyUnknownNames(allowed_names=env.keys())
+    tree2 = transformer.visit(tree)
+    ast.fix_missing_locations(tree2)
+
+    # 実行（globalsは空、localsにenv）
+    code = compile(tree2, "<smart_exec>", "exec")
+    exec(code, {}, env)
+    return env
+
+
+# %%
 def convert_to_dataframe(counter_example: str) -> pd.DataFrame:
     """Convert a SPIN counter example output to a DataFrame.
 
@@ -94,16 +184,13 @@ def convert_to_dataframe(counter_example: str) -> pd.DataFrame:
 
             # actionが値を更新する場合、変数名と値を抽出
             if "=" in action and "==" not in action:
-                variable, value = action.split("=", 1)
-                variable = variable.strip()
-                value = value.strip()
+                pass
             else:
                 # 変数の更新がない場合はスキップ
                 continue
 
-            # 変数を更新する値自体が変数の場合、辞書と照合して、値があれば取り出し
-            value = variables.get(f"{value}", value)
-            variables.update({f"{variable}": value})
+            # 変数を更新する右辺の式を評価
+            smart_exec(action, variables)
 
             data.append(
                 {
@@ -132,6 +219,11 @@ def main():
             counter_example = f.read()
 
     df = convert_to_dataframe(counter_example)
+
+    # SPINはfloatの型を本来もたないため、intに変換して出力
+    for col in df.select_dtypes(include=["float"]):
+        df[col] = df[col].astype("Int64")
+
     df.to_csv("variable_table.csv", index=False)
 
 
