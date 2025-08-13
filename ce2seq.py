@@ -157,11 +157,17 @@ def convert_to_plantuml_code(counter_example: str) -> str:
     # 反例の出現順に列が並ぶと毎回変わってしまうので、一度読み込んで辞書順に並べる
     ret += get_participants(counter_example)
 
+    loop = False
     for line in counter_example.splitlines():
         line = line.strip()
         m = re.match(pattern, line, re.VERBOSE)
         if m:
             step_num, process_name, file_line, action = m.groups()
+        elif "<<<<<START OF CYCLE>>>>>" in line:
+            # ループの開始を検出
+            ret += "loop CYCLE\n"
+            loop = True
+            continue
         else:
             continue
 
@@ -185,6 +191,9 @@ def convert_to_plantuml_code(counter_example: str) -> str:
         ret += (
             f'"{source}" {arrow} "{destination}" : s.{step_num}: {line_num}: {action}\n'
         )
+
+    if loop:
+        ret += "end\n"
 
     return ret
 
