@@ -3,7 +3,7 @@
 import zlib
 import re
 import requests
-import sys
+import argparse
 
 # %%
 COUNTEREXAMPLE = """
@@ -52,6 +52,12 @@ Exit-Status 0
 # PlantUMLサーバのURLを設定
 SERVER = "https://www.plantuml.com/plantuml/png/"
 
+# 式の読み飛ばしルールを定義
+SKIP_RULES = [
+    "==",  # 評価をスキップ
+    # "(1)",  # 評価結果や「値を更新しない」という情報なので読み飛ばさない
+]
+
 # %%
 pattern = r"""
     ^\s*           # 行頭の空白
@@ -71,6 +77,21 @@ pattern = r"""
 
 
 # %%
+def determine_skip(action: str) -> bool:
+    """Determine if the action should be skipped based on predefined rules.
+
+    Args:
+        action (str): Action string to evaluate
+
+    Returns:
+        bool: True if the action should be skipped, False otherwise
+    """
+    for rule in SKIP_RULES:
+        if rule in action:
+            return True
+    return False
+
+
 ## PlantUMLサーバ向けのエンコード関数
 def encode_plantuml(text: str) -> str:
     """Encode text to PlantUML server format.
@@ -143,11 +164,12 @@ def get_participants(counter_example: str) -> str:
     return ret
 
 
-def convert_to_plantuml_code(counter_example: str) -> str:
+def convert_to_plantuml_code(counter_example: str, short_sequence: bool) -> str:
     """Convert a single step to PlantUML code.
 
     Args:
         counter_example (str): Counter example output from SPIN
+        short_sequence (bool): Flag to skip evaluation logs
 
     Returns:
         str: PlantUML code
@@ -163,6 +185,9 @@ def convert_to_plantuml_code(counter_example: str) -> str:
         m = re.match(pattern, line, re.VERBOSE)
         if m:
             step_num, process_name, file_line, action = m.groups()
+            if short_sequence and determine_skip(action):
+                # 評価ログをスキップ
+                continue
         elif "<<<<<START OF CYCLE>>>>>" in line:
             # ループの開始を検出
             ret += "loop CYCLE\n"
@@ -200,21 +225,46 @@ def convert_to_plantuml_code(counter_example: str) -> str:
 
 # %%
 def main():
+    parser = argparse.ArgumentParser(
+        description="Convert SPIN counter example to PlantUML sequence diagram."
+    )
+    parser.add_argument(
+        "-i",
+        "--input_file",
+        help="Path to the SPIN counter example file. If not provided, a sample will be used.",
+        default=None,
+    )
+    parser.add_argument(
+        "-s",
+        "--short_sequence",
+        help="Skips the log related to the evaluation to make sequence diagram shorter.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-o",
+        "--output_file",
+        help="Path to save the output sequence diagram. If not provided, it will output as sequence_diagram.png.",
+        default="sequence_diagram.png",
+    )
+
+    args = parser.parse_args()
+
     plantuml_code = f"""
 @startuml
 scale 2.0
 """
-    # 引数がなければサンプルとしてCOUNTEREXAMPLEを使用
-    print(sys.argv)
-    if len(sys.argv) < 2:
-        print("反例のファイルパスを引数として指定してください。")
-        print("サンプルデータを使用します。")
+    # 入力ファイルの指定がなければサンプルとしてCOUNTEREXAMPLEを使用
+    if not args.input_file:
+        print("Specify the path to the counter example file as an argument.")
+        print("e.g. python ce2seq.py -i counter_example.txt")
+        print("")
+        print("Using sample counter example.")
         counter_example = COUNTEREXAMPLE
     else:
-        with open(sys.argv[1], "r") as f:
+        with open(args.input_file, "r") as f:
             counter_example = f.read()
 
-    plantuml_code += convert_to_plantuml_code(counter_example)
+    plantuml_code += convert_to_plantuml_code(counter_example, args.short_sequence)
     plantuml_code += "@enduml\n"
     print(plantuml_code)
 
@@ -226,7 +276,7 @@ scale 2.0
         pass
     else:
         print("サーバから画像を取得できませんでした")
-    with open("sequence_diagram.png", "wb") as out:
+    with open(args.output_file, "wb") as out:
         out.write(response.content)
 
 
