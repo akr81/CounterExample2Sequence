@@ -3,6 +3,7 @@
 import re
 import sys
 import pandas as pd
+import argparse
 
 # %%
 COUNTEREXAMPLE = """
@@ -83,6 +84,30 @@ class StringifyUnknownNames(ast.NodeTransformer):
         return node
 
 
+# %%
+def initialize_globals_from_pml(pml_filepath: str) -> dict:
+    """Promela (.pml) ファイルを読み込み、グローバル変数の初期値を抽出する。"""
+    variables = {}
+    # 正規表現パターン: "型名 変数名 = 値;" の形式にマッチ
+    pattern = re.compile(r"^\s*(?:int|bool|mtype|byte)\s+(\w+)\s*=\s*([^;]+);")
+
+    with open(pml_filepath, "r", encoding="utf-8") as f:
+        for line in f:
+            m = pattern.match(line)
+            if m:
+                var_name, var_value = m.groups()
+                # 抽出した値をsmart_execで評価して辞書に格納
+                # これにより 'sw = off' のようなものも正しく処理できる
+                temp_env = {}
+                smart_exec(f"{var_name} = {var_value}", temp_env)
+                variables.update(temp_env)
+
+    print(f".pmlファイルから初期値を読み込みました: {variables}")
+    return variables
+
+
+# %%
+
 # 最低限の安全チェック（許可するノードだけ通す）
 _ALLOWED_NODES = {
     ast.Module,
@@ -159,17 +184,17 @@ def smart_exec(assign_src: str, env: dict):
 
 
 # %%
-def convert_to_dataframe(counter_example: str) -> pd.DataFrame:
+def convert_to_dataframe(counter_example: str, variables: dict = {}) -> pd.DataFrame:
     """Convert a SPIN counter example output to a DataFrame.
 
     Args:
         counter_example (str): Counter example output from SPIN
+        variables (dict): Initialized variables from the Promela (.pml) file
 
     Returns:
         pd.DataFrame: DataFrame containing the parsed data
     """
     data = []
-    variables = {}
     loop = False
     for line in counter_example.splitlines():
         line = line.strip()
@@ -208,17 +233,46 @@ def convert_to_dataframe(counter_example: str) -> pd.DataFrame:
 
 # %%
 def main():
-    # 引数がなければサンプルとしてCOUNTEREXAMPLEを使用
-    print(sys.argv)
-    if len(sys.argv) < 2:
-        print("反例のファイルパスを引数として指定してください。")
-        print("サンプルデータを使用します。")
+    parser = argparse.ArgumentParser(
+        description="Convert SPIN counter example to PlantUML sequence diagram."
+    )
+    parser.add_argument(
+        "-i",
+        "--input_file",
+        help="Path to the SPIN counter example file. If not provided, a sample will be used.",
+        default=None,
+    )
+    parser.add_argument(
+        "-p",
+        "--pml_file",
+        required=True,
+        help="REQUIRED: Path to the Promela file.",
+        default=None,
+    )
+    parser.add_argument(
+        "-o",
+        "--output_file",
+        help="Path to save the output csv file. If not provided, it will output as variable_table.csv.",
+        default="variable_table.csv",
+    )
+
+    args = parser.parse_args()
+
+    # 入力ファイルの指定がなければサンプルとしてCOUNTEREXAMPLEを使用
+    if not args.input_file:
+        print("Specify the path to the counter example file as an argument.")
+        print("e.g. python ce2seq.py -i counter_example.txt")
+        print("")
+        print("Using sample counter example.")
         counter_example = COUNTEREXAMPLE
     else:
-        with open(sys.argv[1], "r") as f:
+        with open(args.input_file, "r") as f:
             counter_example = f.read()
 
-    df = convert_to_dataframe(counter_example)
+    if args.pml_file:
+        variables = initialize_globals_from_pml(args.pml_file)
+
+    df = convert_to_dataframe(counter_example, variables)
 
     # SPINはfloatの型を本来もたないため、intに変換して出力
     for col in df.select_dtypes(include=["float"]):

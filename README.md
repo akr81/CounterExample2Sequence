@@ -39,10 +39,11 @@ PlantUMLは出力画像の最大ピクセル数に制限があります。
 
 ### 変数テーブルに変換
 
-コマンドラインから、SPINの実行結果ファイルを引数として実行します。
+コマンドラインから、SPINの実行結果ファイルとPromelaファイル(※)を引数として実行します。  
+(※)反例にはglobalスコープの変数の初期化が出力されないため、必要となります。
 
 ```shell
-python ce2table.py FILE
+python ce2table.py -i FILE -p PML_FILE
 ```
 
 成功すると、`variable_table.csv`が作成されます。  
