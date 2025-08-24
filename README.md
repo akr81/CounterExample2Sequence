@@ -1,6 +1,6 @@
 # CounterExample2Sequence
 
-SPINの実行結果(反例)をシーケンス図、または変数テーブルに変換します。
+SPINやNuSMVの実行結果(反例)をシーケンス図(SPINのみ)、または変数テーブルに変換します。
 
 ## 環境
 
@@ -39,8 +39,10 @@ PlantUMLは出力画像の最大ピクセル数に制限があります。
 
 ### 変数テーブルに変換
 
+#### For SPIN
+
 コマンドラインから、SPINの実行結果ファイルとPromelaファイル(※)を引数として実行します。  
-(※)反例にはglobalスコープの変数の初期化が出力されないため、必要となります。
+(※)反例にはglobalスコープの変数の初期化が出力されないため、Promelaファイルが必要となります。
 
 ```shell
 python ce2table.py -i FILE -p PML_FILE
@@ -48,10 +50,19 @@ python ce2table.py -i FILE -p PML_FILE
 
 成功すると、`variable_table.csv`が作成されます。  
 
+#### For NuSMV
+
+コマンドラインから、NuSMVの実行結果ファイルを引数として実行します。  
+
+```shell
+python ce2table_smv.py -i FILE
+```
+
+成功すると、`variable_table.csv`が作成されます。  
 
 ## 注意事項
 
-PlantUMLの公開サーバを利用しているため、機微な情報の送信にはご注意ください。  
+シーケンス図の作成にはPlantUMLの公開サーバを利用しているため、機微な情報の送信にはご注意ください。  
 ローカルで実行しているPlantUMLサーバを利用する場合には、以下の部分を書き換えるようにしてください。
 
 ```python
