@@ -4,14 +4,24 @@ SPINやNuSMVの実行結果(反例)をシーケンス図(SPINのみ)、または
 
 ## 環境
 
-変数テーブルへの変換には`pandas`を使用しているため、必要に応じてインストールしてください。
+### インストール
+
+PlantUMLサーバとの通信に`requests`、変数テーブルへの変換には`pandas`を使用しているため、必要に応じてインストールしてください。
 
 ```shell
-# 例
-pip install pandas
+pip install uv
+uv venv
+.venv\scripts\activate
+uv pip install -r requirements.txt
 ```
 
 ## 使用方法
+
+仮想環境にセットアップした場合は、事前に仮想環境を立ち上げてください。
+
+```shell
+.venv\scripts\activate
+```
 
 ### シーケンス図に変換
 
