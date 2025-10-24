@@ -205,10 +205,14 @@ def convert_to_plantuml_code(counter_example: str, short_sequence: bool) -> str:
         arrow = "->"
 
         # actionがchへの書き込み・読み込み場合はsourceとdestinationを分ける
-        if "!" in action:
+        ch_write_pattern = r"^[^()!]+![^()!]+$"
+        ch_write_match = re.match(ch_write_pattern, action)
+        ch_read_pattern = r"^[^()!]+?[^()!]+$"
+        ch_read_match = re.match(ch_write_pattern, action)
+        if ch_write_match:
             # 書き込みの場合
             destination, action = action.split("!")
-        elif "?" in action:
+        elif ch_read_match:
             # 読み込みの場合
             source, action = action.split("?")
             arrow = "-->"
