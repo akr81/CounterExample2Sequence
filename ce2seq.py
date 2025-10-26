@@ -207,8 +207,8 @@ def convert_to_plantuml_code(counter_example: str, short_sequence: bool) -> str:
         # actionがchへの書き込み・読み込み場合はsourceとdestinationを分ける
         ch_write_pattern = r"^[^()!]+![^()!]+$"
         ch_write_match = re.match(ch_write_pattern, action)
-        ch_read_pattern = r"^[^()!]+?[^()!]+$"
-        ch_read_match = re.match(ch_write_pattern, action)
+        ch_read_pattern = r"^[A-Za-z0-9_]+\?[A-Za-z0-9_]+$"
+        ch_read_match = re.match(ch_read_pattern, action)
         if ch_write_match:
             # 書き込みの場合
             destination, action = action.split("!")
