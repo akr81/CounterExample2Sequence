@@ -54,7 +54,7 @@ pattern = r"""
     ^\s*           # 行頭の空白
     (\d+)          # step番号
     :\s*proc\s*    # プロセス
-    \d+\s*         # プロセス番号を読み飛ばす
+    (\d+)\s*         # プロセス番号
     \(
         ([^)]+)    # プロセス名
     \)\s+
@@ -205,7 +205,8 @@ def convert_to_dataframe(counter_example: str, variables: dict = {}) -> pd.DataF
 
         m = re.match(pattern, line, re.VERBOSE)
         if m:
-            step_num, process_name, file_line, action = m.groups()
+            step_num, process_id, process_name, file_line, action = m.groups()
+            process_name = process_id + ":" + process_name
 
             # actionが値を更新する場合、変数名と値を抽出
             if "=" in action and "==" not in action:

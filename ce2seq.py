@@ -63,7 +63,7 @@ pattern = r"""
     ^\s*           # 行頭の空白
     (\d+)          # step番号
     :\s*proc\s*    # プロセス
-    \d+\s*         # プロセス番号を読み飛ばす
+    (\d+)\s*       # プロセス番号
     \(
         ([^)]+)    # プロセス名
     \)\s+
@@ -151,7 +151,8 @@ def get_participants(counter_example: str) -> str:
         line = line.strip()
         m = re.match(pattern, line, re.VERBOSE)
         if m:
-            _, process_name, _, _ = m.groups()
+            _, process_id, process_name, _, _ = m.groups()
+            process_name = process_id + ":" + process_name
             participants.add(process_name)
     # プロセス名をアルファベット順にソート
     participants = sorted(participants)
@@ -184,7 +185,8 @@ def convert_to_plantuml_code(counter_example: str, short_sequence: bool) -> str:
         line = line.strip()
         m = re.match(pattern, line, re.VERBOSE)
         if m:
-            step_num, process_name, file_line, action = m.groups()
+            step_num, process_id, process_name, file_line, action = m.groups()
+            process_name = process_id + ":" + process_name
             if short_sequence and determine_skip(action):
                 # 評価ログをスキップ
                 continue
